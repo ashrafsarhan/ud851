@@ -18,6 +18,7 @@ public class DetailActivity extends AppCompatActivity {
 
     public static final String EXTRA_POSITION = "extra_position";
     private static final int DEFAULT_POSITION = -1;
+    private static final String DATA_NA = "Data not available";
     private static final String NEW_LINE_DELIM = "\n";
     private static final String HYPHEN_DELIM ="- " ;
 
@@ -63,13 +64,16 @@ public class DetailActivity extends AppCompatActivity {
         description.append(sandwich.getDescription());
 
         TextView alsoKnown = findViewById(R.id.also_known);
-        alsoKnown.append(getUnorderedListStr(sandwich.getAlsoKnownAs()));
+        String alsoKnownStr = sandwich.getAlsoKnownAs().isEmpty() ? DATA_NA : getUnorderedListStr(sandwich.getAlsoKnownAs());
+        alsoKnown.append(alsoKnownStr);
 
         TextView ingredients = findViewById(R.id.ingredients);
-        ingredients.append(getUnorderedListStr(sandwich.getIngredients()));
+        String ingredientsStr = sandwich.getIngredients().isEmpty() ? DATA_NA : getUnorderedListStr(sandwich.getIngredients());
+        ingredients.append(ingredientsStr);
 
         TextView origin = findViewById(R.id.origin);
-        origin.append(sandwich.getPlaceOfOrigin());
+        String originStr = TextUtils.isEmpty(sandwich.getPlaceOfOrigin()) ? DATA_NA : sandwich.getPlaceOfOrigin();
+        origin.append(originStr);
 
     }
 
