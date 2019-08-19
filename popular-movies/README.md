@@ -27,5 +27,5 @@ API_KEY="Api Key"
 ```
 ## App Media
 
-| ![Home Screen - Popular Movies](https://drive.google.com/open?id=10idGrptcPYdJ5mKCNXg686vi3zkIf_Pd) | ![Sort Criteria](https://drive.google.com/open?id=10UHR8un0QS-ewY6LBdKszliANXlKqO_U) | ![Top Rated Movies](https://drive.google.com/open?id=10d42uUKCrrb6u09s-tyvzZPg1rwacXZU) | ![Details Screen](https://drive.google.com/open?id=10e2TgVJ9SQCdSe9tbPpu23kIuEZZrkCS) |
+| ![Home Screen - Popular Movies](https://i.postimg.cc/d0TbM4Hb/Screenshot-20190819-163631.png) | ![Sort Criteria](https://i.postimg.cc/rFmYXfzf/Screenshot-20190819-163653.png) | ![Top Rated Movies](https://i.postimg.cc/28K9znZr/Screenshot-20190819-163709.png) | ![Details Screen](https://i.postimg.cc/tgPMv77y/Screenshot-20190819-163816.png) |
 |:---:|:---:|:---:|:---:|
