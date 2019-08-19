@@ -1,12 +1,12 @@
-package com.udacity.popularmovies.Interface;
+package com.udacity.popularmovies.service;
 
-import com.udacity.popularmovies.Models.MovieResponse;
+import com.udacity.popularmovies.models.MovieResponse;
 
 import retrofit2.Call;
 import retrofit2.http.GET;
 import retrofit2.http.Query;
 
-public interface MovieInterface {
+public interface MovieService {
 
     @GET("movie/top_rated")
     Call<MovieResponse> getTopRatedMovies(@Query("api_key") String apiKey, @Query("language") String language,

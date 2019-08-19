@@ -1,4 +1,4 @@
-package com.udacity.popularmovies.Adapters;
+package com.udacity.popularmovies.adapters;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
@@ -8,7 +8,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.udacity.popularmovies.Models.Movie;
+import com.udacity.popularmovies.models.Movie;
 import com.udacity.abhijithsreekar.popularmovies.R;
 import com.squareup.picasso.OkHttp3Downloader;
 import com.squareup.picasso.Picasso;

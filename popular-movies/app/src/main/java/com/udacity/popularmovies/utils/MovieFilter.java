@@ -1,4 +1,4 @@
-package com.udacity.popularmovies.Utils;
+package com.udacity.popularmovies.utils;
 
 public enum MovieFilter {
 

@@ -1,4 +1,4 @@
-package com.udacity.popularmovies.Network;
+package com.udacity.popularmovies.utils;
 
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;

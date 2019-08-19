@@ -12,14 +12,14 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import com.udacity.popularmovies.Adapters.MovieAdapter;
-import com.udacity.popularmovies.Interface.MovieInterface;
-import com.udacity.popularmovies.Models.Movie;
-import com.udacity.popularmovies.Models.MovieResponse;
-import com.udacity.popularmovies.Network.APIClient;
+import com.udacity.popularmovies.adapters.MovieAdapter;
+import com.udacity.popularmovies.service.MovieService;
+import com.udacity.popularmovies.models.Movie;
+import com.udacity.popularmovies.models.MovieResponse;
+import com.udacity.popularmovies.utils.APIClient;
 import com.udacity.abhijithsreekar.popularmovies.R;
-import com.udacity.popularmovies.Utils.MovieFilter;
-import com.udacity.popularmovies.Utils.MovieUtils;
+import com.udacity.popularmovies.utils.MovieFilter;
+import com.udacity.popularmovies.utils.NetworkUtil;
 
 import java.util.List;
 
@@ -57,15 +57,14 @@ public class MainActivity extends AppCompatActivity {
         getMovies(MovieFilter.POPULAR);
     }
 
-    // TODO - Implement savedInstancestate and restoreInstanceState - Part 2
+    // TODO - Implement savedInstancestate and restoreInstanceState
 
-    // TODO - Refactor popular movies and top rated movies code into one function - Part 2
     private void getMovies(MovieFilter movieFilter) {
-        if (MovieUtils.getInstance().isNetworkAvailable(this)) {
+        if (NetworkUtil.getInstance().isNetworkAvailable(this)) {
             if (retrofit == null) {
                 retrofit = APIClient.getRetrofitInstance();
             }
-            MovieInterface movieService = retrofit.create(MovieInterface.class);
+            MovieService movieService = retrofit.create(MovieService.class);
             Call<MovieResponse> call = null;
             switch (movieFilter) {
                 case POPULAR:
@@ -117,7 +116,7 @@ public class MainActivity extends AppCompatActivity {
         rvMain.setLayoutManager(new GridLayoutManager(this, 2));
         rvMain.setAdapter(adapter);
 
-        // TODO - Implement Pagination (onScrollListener) - Part 2
+        // TODO - Implement Pagination (onScrollListener)
     }
 
     @Override

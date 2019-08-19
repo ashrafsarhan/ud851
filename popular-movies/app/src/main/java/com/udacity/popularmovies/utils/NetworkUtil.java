@@ -1,25 +1,25 @@
-package com.udacity.popularmovies.Utils;
+package com.udacity.popularmovies.utils;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.util.Log;
 
-final public class MovieUtils {
+final public class NetworkUtil {
 
     private boolean connected;
-    private static MovieUtils instance;
+    private static NetworkUtil instance;
 
-    public static MovieUtils getInstance() {
+    public static NetworkUtil getInstance() {
         if (null != instance) {
             return instance;
         } else {
-            instance = new MovieUtils();
+            instance = new NetworkUtil();
         }
         return instance;
     }
 
-    private MovieUtils() {
+    private NetworkUtil() {
     }
 
     public boolean isNetworkAvailable(Context context) {

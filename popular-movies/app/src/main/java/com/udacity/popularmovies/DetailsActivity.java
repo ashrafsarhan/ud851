@@ -6,7 +6,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.udacity.popularmovies.Models.Movie;
+import com.udacity.popularmovies.models.Movie;
 import com.udacity.abhijithsreekar.popularmovies.R;
 import com.squareup.picasso.OkHttp3Downloader;
 import com.squareup.picasso.Picasso;
