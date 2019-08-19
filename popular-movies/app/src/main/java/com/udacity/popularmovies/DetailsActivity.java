@@ -52,7 +52,7 @@ public class DetailsActivity extends AppCompatActivity {
         movieLanguage.setText(selectedMovie.getOriginalLanguage());
         moviePlot.setText(selectedMovie.getOverview());
         movieReleaseDate.setText(selectedMovie.getReleaseDate());
-        movieVoteAverage.setText(selectedMovie.getVoteAverage().toString());
+        movieVoteAverage.setText(String.format("%s", selectedMovie.getVoteAverage()));
 
         Picasso.Builder builder = new Picasso.Builder(this);
         builder.downloader(new OkHttp3Downloader(this));
