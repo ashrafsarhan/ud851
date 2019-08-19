@@ -42,8 +42,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static Retrofit retrofit;
     private static String API_KEY;
-    public List<Movie> movies;
-    private int currentPage = 1;
+    private List<Movie> movies;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
             }
             MovieService movieService = retrofit.create(MovieService.class);
             Call<MovieResponse> call = null;
+            int currentPage = 1;
             switch (movieFilter) {
                 case POPULAR:
                     call = movieService.getPopularMovies(API_KEY, getResources().getString(R.string.LANGUAGE), currentPage);
