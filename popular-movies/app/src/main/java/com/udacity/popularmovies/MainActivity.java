@@ -1,9 +1,9 @@
 package com.udacity.popularmovies;
 
-import android.content.Intent;
+import android.arch.lifecycle.ViewModelProviders;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.Menu;
@@ -11,28 +11,27 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.Toast;
-
-import com.udacity.popularmovies.adapters.MovieAdapter;
-import com.udacity.popularmovies.service.MovieService;
-import com.udacity.popularmovies.models.Movie;
-import com.udacity.popularmovies.models.MovieResponse;
-import com.udacity.popularmovies.utils.APIClient;
-import com.udacity.abhijithsreekar.popularmovies.R;
-import com.udacity.popularmovies.utils.MovieFilter;
-import com.udacity.popularmovies.utils.NetworkUtil;
-
-import java.util.List;
-
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import com.udacity.popularmovies.adapters.MoviesAdapter;
+import com.udacity.popularmovies.models.Movie;
+import com.udacity.popularmovies.models.MovieResponse;
+import com.udacity.popularmovies.service.MovieService;
+import com.udacity.popularmovies.utils.APIClient;
+import com.udacity.popularmovies.utils.MovieUtils;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import retrofit2.Retrofit;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static com.udacity.popularmovies.utils.Constants.*;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
+
 
     @BindView(R.id.rv_main)
     public RecyclerView rvMain;
@@ -40,49 +39,90 @@ public class MainActivity extends AppCompatActivity {
     @BindView(R.id.progressBar)
     public ProgressBar progressBar;
 
-    private static Retrofit retrofit;
     private static String API_KEY;
-    private List<Movie> movies;
+    public ArrayList<Movie> movies;
+    private int currentPage = 1;
+    private MainActivityViewModel viewModel;
+    private MoviesAdapter adapter;
+    private MovieService movieService;
+    private static String actionBarTitle;
+    private boolean mostPopularOptionChecked = true;
+    private boolean topRatedOptionChecked = false;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        setTitle(R.string.popular_movies);
         API_KEY = getResources().getString(R.string.API_KEY);
 
         ButterKnife.bind(this);
-        progressBar.setVisibility(View.VISIBLE);
-        getMovies(MovieFilter.POPULAR);
+        movies = new ArrayList<>();
+
+        adapter = new MoviesAdapter(this, movies, rvMain);
+        rvMain.setAdapter(adapter);
+        viewModel = ViewModelProviders.of(this).get(MainActivityViewModel.class);
+
+        viewModel.getFavoriteMovies().observe(this, favorites -> {
+            if (favorites != null && !mostPopularOptionChecked && !topRatedOptionChecked) {
+                if (movies == null) {
+                    movies = new ArrayList<>();
+                } else {
+                    adapter.clear();
+                }
+                adapter.addAll(favorites);
+
+                if (movies.size() == 0) {
+                    progressBar.setVisibility(View.INVISIBLE);
+                    Toast.makeText(getApplicationContext(), R.string.FavoritesNotFound, Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+
+        movieService = APIClient.getRetrofitInstance().create(MovieService.class);
+
+        if (savedInstanceState != null) {
+            if (savedInstanceState.containsKey(MOVIES_LIST)) {
+                progressBar.setVisibility(View.GONE);
+                setTitle(savedInstanceState.getString(ACTIVITY_TITLE));
+                movies = savedInstanceState.getParcelableArrayList(MOVIES_LIST);
+                adapter.clear();
+                adapter.setData(movies);
+            }
+
+            if (savedInstanceState.containsKey(MOST_POPULAR_OPTION_CHECKED)) {
+                mostPopularOptionChecked = savedInstanceState.getBoolean(MOST_POPULAR_OPTION_CHECKED);
+            }
+            if (savedInstanceState.containsKey(TOP_RATED_OPTION_CHECKED)) {
+                topRatedOptionChecked = savedInstanceState.getBoolean(TOP_RATED_OPTION_CHECKED);
+            }
+        }
+
+        if (savedInstanceState == null) {
+            if (mostPopularOptionChecked) {
+                progressBar.setVisibility(View.VISIBLE);
+                getPopularMovies();
+            } else if (topRatedOptionChecked) {
+                progressBar.setVisibility(View.VISIBLE);
+                getTopRatedMovies();
+            }
+        }
     }
 
-    // TODO - Implement savedInstancestate and restoreInstanceState
+    private void getPopularMovies() {
+        if (MovieUtils.getInstance().isNetworkAvailable(this)) {
 
-    private void getMovies(MovieFilter movieFilter) {
-        if (NetworkUtil.getInstance().isNetworkAvailable(this)) {
-            if (retrofit == null) {
-                retrofit = APIClient.getRetrofitInstance();
-            }
-            MovieService movieService = retrofit.create(MovieService.class);
-            Call<MovieResponse> call = null;
-            int currentPage = 1;
-            switch (movieFilter) {
-                case POPULAR:
-                    call = movieService.getPopularMovies(API_KEY, getResources().getString(R.string.LANGUAGE), currentPage);
-                    break;
-                case TOP_RATED:
-                    call = movieService.getTopRatedMovies(API_KEY, getResources().getString(R.string.LANGUAGE), currentPage);
-                    break;
-            }
+            Call<MovieResponse> call = movieService.getPopularMovies(API_KEY, getResources().getString(R.string.LANGUAGE), currentPage);
+            Log.i("Popular movies api", movieService.getPopularMovies(API_KEY, getResources().getString(R.string.LANGUAGE), 1).request().url().toString());
             call.enqueue(new Callback<MovieResponse>() {
                 @Override
-                public void onResponse(Call<MovieResponse> call, Response<MovieResponse> response) {
+                public void onResponse(@NonNull Call<MovieResponse> call, @NonNull Response<MovieResponse> response) {
                     if (response.isSuccessful()) {
                         progressBar.setVisibility(View.INVISIBLE);
-                        movies = response.body().getResults();
-                        if (movies != null) {
-                            generateMovieList(movies);
-                            Log.d(TAG, "Number of popular movies received: " + movies.size());
+                        if (response.body().getMovies() != null) {
+                            Log.d(TAG, "Number of popular movies received: " + response.body().getMovies().size());
+                            adapter.addAll(response.body().getMovies());
                         }
                     }
                 }
@@ -90,33 +130,41 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onFailure(Call<MovieResponse> call, Throwable t) {
                     progressBar.setVisibility(View.INVISIBLE);
-                    Toast.makeText(MainActivity.this, "Something went wrong...Please try later!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.Something_wrong_text), Toast.LENGTH_SHORT).show();
                 }
             });
         } else {
-            Log.i("Connection Status", "Not available");
+            progressBar.setVisibility(View.INVISIBLE);
+            Toast.makeText(MainActivity.this, getResources().getString(R.string.Network_Status_Not_Available), Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void generateMovieList(final List<Movie> results) {
-        MovieAdapter adapter = new MovieAdapter(this, results, new MovieAdapter.MovieItemClickListener() {
-            @Override
-            public void onMovieItemClick(int clickedItemIndex) {
-                Intent intent = new Intent(MainActivity.this, DetailsActivity.class);
-                intent.putExtra("Movie", results.get(clickedItemIndex));
-                startActivity(intent);
-            }
-        });
+    private void getTopRatedMovies() {
+        if (MovieUtils.getInstance().isNetworkAvailable(this)) {
 
-        initializeGridView(adapter);
-    }
+            Call<MovieResponse> call = movieService.getTopRatedMovies(API_KEY, getResources().getString(R.string.LANGUAGE), currentPage);
+            Log.i("Top movies api", movieService.getTopRatedMovies(API_KEY, getResources().getString(R.string.LANGUAGE), 1).request().url().toString());
+            call.enqueue(new Callback<MovieResponse>() {
+                @Override
+                public void onResponse(Call<MovieResponse> call, Response<MovieResponse> response) {
+                    if (response.isSuccessful()) {
+                        progressBar.setVisibility(View.INVISIBLE);
+                        if (response.body().getMovies() != null) {
+                            Log.d(TAG, "Number of top rated movies received: " + response.body().getMovies().size());
+                            adapter.addAll(response.body().getMovies());
+                        }
+                    }
+                }
 
-    private void initializeGridView(MovieAdapter adapter) {
-        rvMain.setHasFixedSize(true);
-        rvMain.setLayoutManager(new GridLayoutManager(this, 2));
-        rvMain.setAdapter(adapter);
-
-        // TODO - Implement Pagination (onScrollListener)
+                @Override
+                public void onFailure(Call<MovieResponse> call, Throwable t) {
+                    progressBar.setVisibility(View.INVISIBLE);
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.Something_wrong_text), Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            Log.i("Network Connection Status", "Not available");
+        }
     }
 
     @Override
@@ -130,15 +178,51 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
         switch (id) {
             case R.id.topRated:
-                getMovies(MovieFilter.TOP_RATED);
+                progressBar.setVisibility(View.VISIBLE);
+                mostPopularOptionChecked = false;
+                topRatedOptionChecked = true;
+                adapter.clear();
+                getTopRatedMovies();
                 setTitle(R.string.toprated_movies);
+                actionBarTitle = getResources().getString(R.string.toprated_movies);
                 break;
             case R.id.popular:
-                getMovies(MovieFilter.POPULAR);
+                mostPopularOptionChecked = true;
+                topRatedOptionChecked = false;
+                progressBar.setVisibility(View.VISIBLE);
+                adapter.clear();
+                getPopularMovies();
                 setTitle(R.string.popular_movies);
+                actionBarTitle = getResources().getString(R.string.popular_movies);
+                break;
+
+            case R.id.favorite:
+                mostPopularOptionChecked = false;
+                topRatedOptionChecked = false;
+                progressBar.setVisibility(View.VISIBLE);
+                adapter.clear();
+                setTitle(R.string.favorite_movies);
+                actionBarTitle = getResources().getString(R.string.favorite_movies);
+                List<Movie> favoriteMovies = viewModel.getFavoriteMovies().getValue();
+                if (favoriteMovies != null && favoriteMovies.size() > 0) {
+                    progressBar.setVisibility(View.INVISIBLE);
+                    adapter.addAll(favoriteMovies);
+                } else {
+                    progressBar.setVisibility(View.INVISIBLE);
+                    Toast.makeText(getApplicationContext(), R.string.FavoritesNotFound, Toast.LENGTH_SHORT).show();
+                }
                 break;
         }
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        outState.putBoolean(MOST_POPULAR_OPTION_CHECKED, mostPopularOptionChecked);
+        outState.putBoolean(TOP_RATED_OPTION_CHECKED, topRatedOptionChecked);
+        outState.putParcelableArrayList(MOVIES_LIST, movies);
+        outState.putString(ACTIVITY_TITLE, actionBarTitle);
+        outState.putParcelable(RECYCLER_VIEW_LAYOUT_MANAGER_STATE, rvMain.getLayoutManager().onSaveInstanceState());
+        super.onSaveInstanceState(outState);
+    }
 }

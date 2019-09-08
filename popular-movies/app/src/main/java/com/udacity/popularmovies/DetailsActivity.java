@@ -1,20 +1,53 @@
 package com.udacity.popularmovies;
 
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.util.Log;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
-
-import com.udacity.popularmovies.models.Movie;
-import com.udacity.abhijithsreekar.popularmovies.R;
-import com.squareup.picasso.OkHttp3Downloader;
-import com.squareup.picasso.Picasso;
-
+import android.widget.Toast;
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import com.squareup.picasso.OkHttp3Downloader;
+import com.squareup.picasso.Picasso;
+import com.udacity.popularmovies.adapters.CastAdapter;
+import com.udacity.popularmovies.adapters.ReviewsAdapter;
+import com.udacity.popularmovies.adapters.TrailerAdapter;
+import com.udacity.popularmovies.database.MovieDatabase;
+import com.udacity.popularmovies.models.*;
+import com.udacity.popularmovies.service.MovieService;
+import com.udacity.popularmovies.utils.APIClient;
+import com.udacity.popularmovies.utils.AppExecutors;
+import com.udacity.popularmovies.utils.MovieUtils;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+
+import java.util.List;
+
+import static com.udacity.popularmovies.utils.Constants.FAV_MOVIE_KEY;
+import static com.udacity.popularmovies.utils.Constants.SELECTED_MOVIE_TO_SEE_DETAILS;
 
 public class DetailsActivity extends AppCompatActivity {
+
+    private static final String TAG = DetailsActivity.class.getSimpleName();
+
+    private static Retrofit retrofit;
+    private static String API_KEY;
+    public List<Trailer> trailers;
+    public List<Reviews> reviews;
+    public List<Cast> cast;
+    private boolean isFavorite;
+    private int movieId;
+    private Movie movie;
 
     @BindView(R.id.iv_details_moviePoster)
     ImageView moviePoster;
@@ -34,31 +67,259 @@ public class DetailsActivity extends AppCompatActivity {
     @BindView(R.id.tv_details_voteAverage_val)
     TextView movieVoteAverage;
 
+    @BindView(R.id.rv_trailer)
+    public RecyclerView rvTrailer;
+
+    @BindView(R.id.rv_reviews)
+    public RecyclerView rvReviews;
+
+    @BindView(R.id.rv_cast)
+    public RecyclerView rvCast;
+
+    @BindView(R.id.tv_cast_not_available)
+    TextView castNotAvailable;
+
+    @BindView(R.id.tv_trailers_not_available)
+    TextView trailersNotAvailable;
+
+    @BindView(R.id.tv_reviews_not_available)
+    TextView reviewsNotAvailable;
+
+    @BindView(R.id.iv_fav_btn)
+    ImageView favBtn;
+
+    private DetailsActivityViewModel viewModel;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_details);
-        getSupportActionBar().hide();
+        API_KEY = getResources().getString(R.string.API_KEY);
 
         ButterKnife.bind(this);
-        bindSelectedMovieData();
+        MovieService movieService = APIClient.getRetrofitInstance().create(MovieService.class);
+        viewModel = ViewModelProviders.of(this).get(DetailsActivityViewModel.class);
+
+        favBtn.setOnClickListener(v -> onFavButtonClicked());
+
+        if (getIntent() != null) {
+            if (getIntent().hasExtra(SELECTED_MOVIE_TO_SEE_DETAILS)) {
+                movie = getIntent().getParcelableExtra(SELECTED_MOVIE_TO_SEE_DETAILS);
+                movieId = movie.getMovieId();
+                AppExecutors.getExecutorInstance().getDiskIO().execute(() -> {
+                    isFavorite = viewModel.isFavorite(movieId);
+                    if (isFavorite) {
+                        movie = MovieDatabase.getInstance(this).movieDao().getMovie(movieId);
+                        runOnUiThread(() -> favBtn.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.favorite_selected)));
+                    } else {
+                        runOnUiThread(() -> favBtn.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.favorite_unsel)));
+                    }
+                });
+            }
+        }
+
+        getSelectedMovieDetails(movieService);
+
     }
 
-    private void bindSelectedMovieData() {
-        Intent intent = getIntent();
-        Movie selectedMovie = intent.getParcelableExtra("Movie");
+    private void getSelectedMovieDetails(MovieService client) {
+        if (movieId != 0) {
+            Call<Movie> detailResultsCall = client.getMovieDetails(movieId, API_KEY);
+            detailResultsCall.enqueue(new Callback<Movie>() {
+                @Override
+                public void onResponse(@NonNull Call<Movie> call, @NonNull Response<Movie> response) {
+                    if (response.body() == null) {
+                        return;
+                    }
 
-        movieTitle.setText(selectedMovie.getTitle());
-        movieLanguage.setText(selectedMovie.getOriginalLanguage());
-        moviePlot.setText(selectedMovie.getOverview());
-        movieReleaseDate.setText(selectedMovie.getReleaseDate());
-        movieVoteAverage.setText(String.format("%s", selectedMovie.getVoteAverage()));
+                    movieTitle.setText(response.body().getTitle());
+                    movieLanguage.setText(response.body().getOriginalLanguage());
+                    if (response.body().getOverview() != null && !response.body().getOverview().isEmpty()) {
+                        moviePlot.setText(response.body().getOverview());
+                    } else {
+                        moviePlot.setText(getResources().getString(R.string.plotNotAvailable));
+                    }
+                    movieReleaseDate.setText(response.body().getReleaseDate());
+                    movieVoteAverage.setText(String.valueOf(response.body().getVoteAverage()));
 
-        Picasso.Builder builder = new Picasso.Builder(this);
-        builder.downloader(new OkHttp3Downloader(this));
-        builder.build().load(this.getResources().getString(R.string.IMAGE_BASE_URL) + selectedMovie.getBackdropPath())
-                .placeholder((R.drawable.gradient_background))
-                .error(R.drawable.ic_launcher_background)
-                .into(moviePoster);
+                    Picasso.Builder builder = new Picasso.Builder(getApplicationContext());
+                    builder.downloader(new OkHttp3Downloader(getApplicationContext()));
+                    builder.build().load(getResources().getString(R.string.IMAGE_BASE_URL) + response.body().getBackdropPath())
+                            .placeholder((R.drawable.gradient_background))
+                            .error(R.drawable.ic_launcher_background)
+                            .into(moviePoster);
+                }
+
+                @Override
+                public void onFailure(@NonNull Call<Movie> call, @NonNull Throwable t) {
+                    if (movie != null) {
+                        Log.d(TAG, "Movie already set by favorites");
+                    } else {
+                        Toast.makeText(getApplicationContext(), getResources().getString(R.string.Something_wrong_text), Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+
+            getMovieTrailers(movieId);
+            getMovieReviews(movieId);
+            getMovieCast(movieId);
+        }
+    }
+
+    private void onFavButtonClicked() {
+        AppExecutors.getExecutorInstance().getDiskIO().execute(() -> {
+            boolean isFavorite = viewModel.isFavorite(movieId);
+            if (isFavorite) {
+                viewModel.removeMovieFromFavorites(movie);
+                runOnUiThread(() -> {
+                    favBtn.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.favorite_unsel));
+                    Toast.makeText(this, getResources().getString(R.string.Favorite_Removed), Toast.LENGTH_SHORT).show();
+                });
+            } else {
+                viewModel.addMovieToFavorites(movie);
+                runOnUiThread(() -> {
+                    Toast.makeText(this, getResources().getString(R.string.Favorite_Added), Toast.LENGTH_SHORT).show();
+                    favBtn.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.favorite_selected));
+                });
+            }
+            viewModel.updatFavoriteMovie(movieId, !isFavorite);
+           // navigateToFavoritesMovieScreen();
+            finish();
+        });
+    }
+
+    private void navigateToFavoritesMovieScreen() {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.putExtra(FAV_MOVIE_KEY, true);
+        startActivity(intent);
+    }
+
+    private void getMovieCast(Integer id) {
+        if (MovieUtils.getInstance().isNetworkAvailable(this)) {
+            if (retrofit == null) {
+                retrofit = APIClient.getRetrofitInstance();
+            }
+            MovieService movieService = retrofit.create(MovieService.class);
+            Call<MovieCredits> call = movieService.getMovieCredits(id, API_KEY);
+            call.enqueue(new Callback<MovieCredits>() {
+                @Override
+                public void onResponse(@NonNull Call<MovieCredits> call, @NonNull Response<MovieCredits> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        cast = response.body().getCast();
+                        if (cast != null && !cast.isEmpty()) {
+                            rvCast.setVisibility(View.VISIBLE);
+                            castNotAvailable.setVisibility(View.GONE);
+                            generateCreditsList(cast);
+                        } else {
+                            rvCast.setVisibility(View.GONE);
+                            castNotAvailable.setVisibility(View.VISIBLE);
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<MovieCredits> call, Throwable t) {
+                    Toast.makeText(DetailsActivity.this, R.string.Something_wrong_text, Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            Toast.makeText(DetailsActivity.this, getResources().getString(R.string.Network_Status_Not_Available), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void getMovieReviews(Integer id) {
+        if (MovieUtils.getInstance().isNetworkAvailable(this)) {
+            if (retrofit == null) {
+                retrofit = APIClient.getRetrofitInstance();
+            }
+            MovieService movieService = retrofit.create(MovieService.class);
+            Call<MovieReviews> call = movieService.getMovieReviews(id, API_KEY, 1);
+            call.enqueue(new Callback<MovieReviews>() {
+                @Override
+                public void onResponse(@NonNull Call<MovieReviews> call, @NonNull Response<MovieReviews> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        reviews = response.body().getReviewList();
+                        if (reviews != null && !reviews.isEmpty()) {
+                            rvReviews.setVisibility(View.VISIBLE);
+                            reviewsNotAvailable.setVisibility(View.GONE);
+                            generateReviewList(reviews);
+                        } else {
+                            rvReviews.setVisibility(View.GONE);
+                            reviewsNotAvailable.setVisibility(View.VISIBLE);
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<MovieReviews> call, Throwable t) {
+                    Toast.makeText(DetailsActivity.this, getResources().getString(R.string.Something_wrong_text), Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            Toast.makeText(DetailsActivity.this, getResources().getString(R.string.Network_Status_Not_Available), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void getMovieTrailers(Integer id) {
+        if (MovieUtils.getInstance().isNetworkAvailable(this)) {
+            if (retrofit == null) {
+                retrofit = APIClient.getRetrofitInstance();
+            }
+            MovieService movieService = retrofit.create(MovieService.class);
+            Call<MovieTrailer> call = movieService.getMovieTrailers(id, API_KEY);
+            call.enqueue(new Callback<MovieTrailer>() {
+                @Override
+                public void onResponse(@NonNull Call<MovieTrailer> call, @NonNull Response<MovieTrailer> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        trailers = response.body().getTrailers();
+                        if (trailers != null && !trailers.isEmpty()) {
+                            rvTrailer.setVisibility(View.VISIBLE);
+                            trailersNotAvailable.setVisibility(View.GONE);
+                            generateTrailerList(trailers);
+                        } else {
+                            rvTrailer.setVisibility(View.GONE);
+                            trailersNotAvailable.setVisibility(View.VISIBLE);
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(@NonNull Call<MovieTrailer> call, @NonNull Throwable t) {
+                    Toast.makeText(DetailsActivity.this, R.string.Something_wrong_text, Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            Toast.makeText(DetailsActivity.this, getResources().getString(R.string.Network_Status_Not_Available), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void generateCreditsList(List<Cast> cast) {
+        CastAdapter adapter = new CastAdapter(this, cast);
+        initCastAdapter(adapter);
+    }
+
+    private void generateReviewList(final List<Reviews> reviews) {
+        ReviewsAdapter adapter = new ReviewsAdapter(this, reviews);
+        initReviewsAdapter(adapter);
+    }
+
+    private void generateTrailerList(final List<Trailer> trailers) {
+        TrailerAdapter adapter = new TrailerAdapter(this, trailers);
+        initTrailersAdapter(adapter);
+    }
+
+    private void initCastAdapter(CastAdapter adapter) {
+        rvCast.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        rvCast.setAdapter(adapter);
+    }
+
+    private void initReviewsAdapter(ReviewsAdapter adapter) {
+        rvReviews.setLayoutManager(new LinearLayoutManager(this));
+        rvReviews.setAdapter(adapter);
+    }
+
+    private void initTrailersAdapter(TrailerAdapter adapter) {
+        rvTrailer.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        rvTrailer.setAdapter(adapter);
     }
 }
