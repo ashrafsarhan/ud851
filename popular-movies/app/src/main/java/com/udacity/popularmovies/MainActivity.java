@@ -163,7 +163,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         } else {
-            Log.i("Network Connection Status", "Not available");
+            Log.i("Connection Status", "Not available");
         }
     }
 
