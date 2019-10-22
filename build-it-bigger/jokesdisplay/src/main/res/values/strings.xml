@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">JokesDisplay</string>
+    <string name="sample_joke">Pear to Pear Shoutout</string>
+    <string name="emptyJokePlaceholder">Trouble retrieving the joke for you</string>
+</resources>
