@@ -25,13 +25,9 @@ public class EndPointAsyncTaskUnitTest extends ApplicationTestCase<Application> 
             }
         });
         endPointAsyncTask.execute();
-        try {
-            joke = endPointAsyncTask.get(10, TimeUnit.SECONDS);
-            assertNotNull("Joke does not fetched successfully", joke);
-            assertFalse("Joke does not fetched successfully", joke.isEmpty());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        joke = endPointAsyncTask.get();
+        assertNotNull("Joke does not fetched successfully (null)", joke);
+        assertFalse("Joke does not fetched successfully (empty)", joke.isEmpty());
     }
 }
 
